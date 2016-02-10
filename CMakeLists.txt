@@ -8,8 +8,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(FIRST_RUN OFF CACHE BOOL "First Run of CMake")
 set(OPENCV_PATH "opencv/build" CACHE STRING "Path to opencv/build path")
 
+if (CMAKE_GENERATOR STREQUAL "Visual Studio 14 2015 Win64")
 set(OPENCVBINDIR "${OPENCV_PATH}/x64/vc14/bin")
 set(OPENCVLIBDIR "${OPENCV_PATH}/x64/vc14/lib")
+elseif(CMAKE_GENERATOR STREQUAL "Visual Studio 12 2013 Win64")
+set(OPENCVBINDIR "${OPENCV_PATH}/x64/vc12/bin")
+set(OPENCVLIBDIR "${OPENCV_PATH}/x64/vc12/lib")
+endif()
 set(OPENCVINCLUDEDIR "${OPENCV_PATH}/include")
 
 set(PLATFORM "x64")

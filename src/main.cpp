@@ -18,6 +18,7 @@ cv::Mat computeDisparity(cv::Mat&, cv::Mat&);
 
 void segment(cv::Mat input);
 int cpt = 0;
+std::vector<cv::Mat> results;
 int main(int argc, char** argv)
 {
 	/*if (argc < 3)
@@ -26,42 +27,53 @@ int main(int argc, char** argv)
 		return 1;
 	}*/
 	std::vector<cv::Mat> images;
+	std::vector<cv::Mat> images2;
 	std::stringstream path("");
 	for (int i = 0; i < 78; ++i) //parce qu'il y a 77 images dans le dossier, a voir si on fait pas un count des *.png ou si on passe un nombre d'image a analyser
 	{
-		path << "..\\..\\images\\2011_09_26_drive_0052_sync\\image_03\\data\\"
+		path << "..\\..\\images\\2011_09_26_drive_0052_sync\\image_02\\data\\"
 			<< std::setfill('0') << std::setw(10) << i
 			<< ".png";
 		cv::Mat image1 = cv::imread(path.str(), CV_LOAD_IMAGE_COLOR/*CV_LOAD_IMAGE_GRAYSCALE*/);
 		images.push_back(image1);
 		path = std::stringstream();
 	}
-
-	for (auto it = images.begin(); it != images.end() - 1; ++it)
+	//for (int i = 0; i < 78; ++i) //parce qu'il y a 77 images dans le dossier, a voir si on fait pas un count des *.png ou si on passe un nombre d'image a analyser
+	//{
+	//	path << "..\\..\\images\\2011_09_26_drive_0052_sync\\image_03\\data\\"
+	//		<< std::setfill('0') << std::setw(10) << i
+	//		<< ".png";
+	//	cv::Mat image1 = cv::imread(path.str(), /*CV_LOAD_IMAGE_COLOR*/CV_LOAD_IMAGE_GRAYSCALE);
+	//	images2.push_back(image1);
+	//	path = std::stringstream();
+	//}
+	for (std::vector<cv::Mat>::const_iterator it = images.begin(); it != images.end(); ++it)
 	{
 		//cv::imshow("img", *it);
 
 		cv::Mat image1 = ( *it );
-		//cv::Mat image2 = ( *it ) + 1;
-		//cv::Mat imgT = cv::imread("D:\\ESGI\\5A\\opencv\\mastering_opencv\\trunk\\Chapter5_NumberPlateRecognition\\test\\2715DTZ.jpg", CV_LOAD_IMAGE_COLOR);
-		//cv::Mat imgT = cv::imread("D:\\ESGI\\5A\\projet_vision\\trunk\\images\\2011_09_26_drive_0052_sync\\image_03\\data\\0000000077.png", CV_LOAD_IMAGE_COLOR);
-
+		
+		//cv::Mat image2 = images2[cpt];
+		
 
 		segment(image1);
-		cpt++;
+		std::cout << "segmenting img " << cpt << std::endl;
 		/*std::vector<cv::Point2f> points1;
 		std::vector<cv::Point2f> points2;
 		findMatchings(image1, image2, points1, points2);
 		findMatchings(image2, image1, points2, points1);
 		showMatchings(image1, image2, points1, points2);
-		cv::Mat rectified1(image1.size(), image1.type());
-		cv::Mat rectified2(image2.size(), image2.type());
-		rectify(image1, image2, points1, points2, rectified1, rectified2);
-		cv::imshow("rectified L", rectified1);
-		cv::imshow("rectified R", rectified2);
-		cv::Mat disparity = computeDisparity(rectified1, rectified2);
-		cv::imshow("disparity", disparity);
-		cv::waitKey();*/
+		cv::Mat disparity = computeDisparity(image1, image2);
+		cv::imshow("disparity", disparity);*/
+		
+		//cv::waitKey();
+		cpt++;
+	}
+
+	for (std::vector<cv::Mat>::const_iterator it = results.begin(); it != results.end(); ++it)
+	{
+		cv::imshow("img", *it); 
+		cv::waitKey();
 	}
 
 	//cv::Mat image1 = cv::imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
@@ -166,8 +178,8 @@ bool verifySizes(cv::RotatedRect mr)
 	//Spain car plate size: 52x11 aspect 4,7272
 	float aspect = 4.7272;
 	//Set a min and max area. All other patchs are discarded
-	int min = 5 * aspect * 5; // minimum area
-	int max = 125 * aspect * 125; // maximum area
+	int min = 5 * aspect * 5; // minimum area (before : 15)
+	int max = 50 * aspect * 50; // maximum area (before 125)
 								  //Get only patchs that match to a respect ratio.
 	float rmin = aspect - aspect*error;
 	float rmax = aspect + aspect*error;
@@ -211,7 +223,7 @@ cv::Mat histeq(cv::Mat in)
 }
 
 bool showSteps = false;
-bool showContours = true;
+bool showContours = false;
 bool saveRegions = false;
 
 void segment(cv::Mat input)
@@ -391,6 +403,7 @@ void segment(cv::Mat input)
 	}
 	if (showContours)
 		imshow("Contours", result);
+	results.push_back(cv::Mat(result));
 	cv::waitKey();
 	//return output;
 }

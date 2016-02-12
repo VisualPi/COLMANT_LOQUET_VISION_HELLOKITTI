@@ -64,12 +64,13 @@ int main(int argc, char** argv)
 
 	for (std::vector<cv::Mat>::const_iterator it = images.begin(); it != images.end(); ++it)
 	{
+		cv::Mat image1 = ( *it );
 		std::vector<cv::Point2f> points1;
 		std::vector<cv::Point2f> points2;
-		findMatchings(( *it ), images2[cpt], points1, points2);
+		findMatchings(image1, images2[cpt], points1, points2);
 		findMatchings(images2[cpt], image1, points2, points1);
 		showMatchings(( *it ), images2[cpt], points1, points2);
-		cv::Mat disparity = computeDisparity(( *it ), images2[cpt]);
+		cv::Mat disparity = computeDisparity(image1, images2[cpt]);
 		cv::imshow("disparity", disparity);
 		cv::waitKey();
 		cpt++;

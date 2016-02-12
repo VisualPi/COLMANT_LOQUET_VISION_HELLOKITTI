@@ -14,6 +14,7 @@
 #include <iomanip>
 
 #define DISPARITY 0
+#define HARD_CHECK 1
 
 
 #pragma region functions definitions
@@ -27,6 +28,7 @@ void Detection(cv::Mat input_image);
 #pragma endregion definition des fonctions
 
 #pragma region variables definitions
+std::string window_name = "Hello Kitty !";
 int cpt = 0;
 std::vector<cv::Mat> results;
 
@@ -36,8 +38,10 @@ bool saveRegions = true;
 #pragma endregion declaration des variables
 
 
+
 int main(int argc, char** argv)
 {
+	cv::namedWindow(window_name, CV_WINDOW_AUTOSIZE);
 #if DISPARITY == 1
 	std::vector<cv::Mat> images;
 	std::stringstream path("");
@@ -69,9 +73,9 @@ int main(int argc, char** argv)
 		std::vector<cv::Point2f> points2;
 		findMatchings(image1, images2[cpt], points1, points2);
 		findMatchings(images2[cpt], image1, points2, points1);
-		showMatchings(( *it ), images2[cpt], points1, points2);
+		//showMatchings(( *it ), images2[cpt], points1, points2);
 		cv::Mat disparity = computeDisparity(image1, images2[cpt]);
-		cv::imshow("disparity", disparity);
+		cv::imshow(window_name, disparity);
 		cv::waitKey();
 		cpt++;
 	}
@@ -89,32 +93,37 @@ int main(int argc, char** argv)
 	}
 	for (std::vector<cv::Mat>::const_iterator it = images.begin(); it != images.end(); ++it)
 	{
-		cv::Mat image1 = ( *it );
-		//cv::Mat image1 = cv::imread("D:\\ESGI\\5A\\opencv\\mastering_opencv\\trunk\\Chapter5_NumberPlateRecognition\\test\\3028BYS.JPG", CV_LOAD_IMAGE_COLOR);;
-
-		//std::vector<Plate> tmp_plates = segment(image1);
-		//if (showContours)
-		//	cv::waitKey();
-
-		/*int i = 0;
-		for (std::vector<Plate>::const_iterator it2 = tmp_plates.begin(); it2 != tmp_plates.end(); ++it2)
+		cv::Mat image1 = (*it);
+		//cv::Mat image1 = cv::imread("C:\\Users\\jonathanL\\Documents\\ocv\\trunk\\3028BYS.JPG", CV_LOAD_IMAGE_COLOR);
+#if HARD_CHECK == 1
+		int nbCaseX = 6;
+		int nbCaseY = 4;
+		int lenX = image1.size().width / nbCaseX;
+		int lenY = image1.size().height / nbCaseY;
+		int factRes = 2;
+		for (int x = 0; x < nbCaseX; ++x)
 		{
-			std::string name = "Plate : " + std::to_string(i++);
-			cv::imshow(name, (*it2).GetImg());
+			for (int y = 0; y < nbCaseY; ++y)
+			{
+				cv::Mat cropImg = image1(cv::Rect((x * image1.size().width) / nbCaseX, (y * image1.size().height) / nbCaseY, lenX , lenY));
+				cv::Mat res;
+				cv::resize(cropImg, res, cv::Size(cropImg.size().width * factRes, cropImg.size().height * factRes));
+				std::string n = std::to_string(x) + "," + std::to_string(y);
+				cv::imshow(n, res);
+				cv::moveWindow(n, ((x * image1.size().width) / nbCaseX) * factRes, ((y * image1.size().height) / nbCaseY) * factRes);
+				//Detection(res);
+			}
 		}
 		cv::waitKey();
-		cpt++;*/
+		
+#else
 		Detection(image1);
-	}
 
-	/*for (std::vector<cv::Mat>::const_iterator it = results.begin(); it != results.end(); ++it)
-	{
-		cv::imshow("img", *it);
-		cv::waitKey();
-	}*/
+#endif
+			}
 #endif
 	return 0;
-}
+		}
 
 void findMatchings(cv::Mat& img1, cv::Mat& img2, std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2)
 {
@@ -130,7 +139,7 @@ void findMatchings(cv::Mat& img1, cv::Mat& img2, std::vector<cv::Point2f>& pts1,
 	cv::calcOpticalFlowPyrLK(img1, img2, tmpA, tmpB, status, errors);
 	for (int i = 0; i < maxCorners; ++i)
 	{
-		if (static_cast<int>( status[i] ) != 0)
+		if (static_cast<int>(status[i]) != 0)
 		{
 			pts1.push_back(tmpA[i]);
 			pts2.push_back(tmpB[i]);
@@ -139,17 +148,6 @@ void findMatchings(cv::Mat& img1, cv::Mat& img2, std::vector<cv::Point2f>& pts1,
 }
 void showMatchings(cv::Mat img1, cv::Mat img2, const std::vector<cv::Point2f>& pts1, const std::vector<cv::Point2f>& pts2)
 {
-	//cv::Mat tmp1, tmp2;
-	//cv::cvtColor(img1, tmp1, CV_GRAY2BGR);
-	//cv::cvtColor(img2, tmp2, CV_GRAY2BGR);
-	//for (int i = 0; i < pts1.size(); ++i)
-	//{
-	//	cv::line(tmp1, pts1[i], pts2[i], cv::Scalar(150, 122, 46));
-	//	cv::line(tmp2, pts1[i], pts2[i], cv::Scalar(150, 122, 46));
-	//}
-	//cv::imshow("Display Matching L", tmp1);
-	//cv::imshow("Display Matching R", tmp2);
-
 	cv::Size s1 = img1.size();
 	cv::Size s2 = img2.size();
 	cv::Mat im3(s1.height, s1.width + s2.width, img1.type());
@@ -163,7 +161,7 @@ void showMatchings(cv::Mat img1, cv::Mat img2, const std::vector<cv::Point2f>& p
 
 	for (int i = 0; i < pts1.size(); ++i)
 		cv::line(dispImg, pts1[i], cv::Point2f(pts2[i].x + img1.size().width, pts2[i].y), cv::Scalar(132, 98, 6));
-	cv::imshow("Display Matching LR", dispImg);
+	cv::imshow(window_name, dispImg);
 }
 void rectify(cv::Mat& img1, cv::Mat& img2, std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2, cv::Mat& rectified1, cv::Mat& rectified2)
 {
@@ -182,7 +180,7 @@ cv::Mat computeDisparity(cv::Mat& rectified1, cv::Mat& rectified2)
 	sbm->compute(rectified1, rectified2, disp);
 	double minVal, maxVal;
 	cv::minMaxLoc(disp, &minVal, &maxVal);
-	disp.convertTo(disp2, CV_8UC1, 255 / ( maxVal - minVal ));
+	disp.convertTo(disp2, CV_8UC1, 255 / (maxVal - minVal));
 	return disp2;
 
 }
@@ -199,18 +197,18 @@ bool verifySizes(cv::RotatedRect mr)
 	//Spain car plate size: 52x11 aspect 4,7272
 	float aspect = 4.7272f;
 	//Set a min and max area. All other patchs are discarded
-	int min = 5 * static_cast<int>( aspect ) * 5; // minimum area (before : 15)
-	int max = 50 * static_cast<int>( aspect ) * 50; // maximum area (before 125)
-								  //Get only patchs that match to a respect ratio.
+	int min = 5 * static_cast<int>(aspect) * 15; // minimum area
+	int max = 50 * static_cast<int>(aspect) * 125; // maximum area
+	//Get only patchs that match to a respect ratio.
 	float rmin = aspect - aspect*error;
 	float rmax = aspect + aspect*error;
 
-	int area = static_cast<int>( mr.size.height ) * static_cast<int>( mr.size.width );
+	int area = static_cast<int>(mr.size.height) * static_cast<int>(mr.size.width);
 	float r = (float) mr.size.width / (float) mr.size.height;
 	if (r < 1)
 		r = (float) mr.size.height / (float) mr.size.width;
 
-	if (( area < min || area > max ) || ( r < rmin || r > rmax ))
+	if ((area < min || area > max) || (r < rmin || r > rmax))
 	{
 		return false;
 	}
@@ -257,7 +255,7 @@ std::vector<Plate> segment(cv::Mat input)
 	cv::Sobel(img_gray, img_sobel, CV_8U, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);
 	if (showSteps)
 	{
-		imshow("Sobel", img_sobel);
+		imshow(window_name, img_sobel);
 		cv::waitKey();
 	}
 
@@ -267,7 +265,7 @@ std::vector<Plate> segment(cv::Mat input)
 	threshold(img_sobel, img_threshold, 0, 255, CV_THRESH_OTSU + CV_THRESH_BINARY);
 	if (showSteps)
 	{
-		cv::imshow("Threshold", img_threshold);
+		cv::imshow(window_name, img_threshold);
 		cv::waitKey();
 	}
 
@@ -276,16 +274,16 @@ std::vector<Plate> segment(cv::Mat input)
 	cv::morphologyEx(img_threshold, img_threshold, CV_MOP_CLOSE, element);
 	if (showSteps)
 	{
-		imshow("Close", img_threshold);
+		imshow(window_name, img_threshold);
 		cv::waitKey();
 	}
 
 	//Find contours of possibles plates
 	std::vector< std::vector< cv::Point> > contours;
 	cv::findContours(img_threshold,
-				 contours, // a vector of contours
-				 CV_RETR_EXTERNAL, // retrieve the external contours
-				 CV_CHAIN_APPROX_NONE); // all pixels of each contours
+					 contours, // a vector of contours
+					 CV_RETR_EXTERNAL, // retrieve the external contours
+					 CV_CHAIN_APPROX_NONE); // all pixels of each contours
 
 	//Start to iterate to each contour founded
 	std::vector<std::vector<cv::Point> >::iterator itc = contours.begin();
@@ -323,7 +321,7 @@ std::vector<Plate> segment(cv::Mat input)
 		//And then we can retrieve more clearly the contour box
 		circle(result, rects[i].center, 3, cv::Scalar(0, 255, 0), -1);
 		//get the min size between width and height
-		float minSize = ( rects[i].size.width < rects[i].size.height ) ? rects[i].size.width : rects[i].size.height;
+		float minSize = (rects[i].size.width < rects[i].size.height) ? rects[i].size.width : rects[i].size.height;
 		minSize = minSize - minSize * 0.5f;
 		//initialize rand and get 5 points around center for floodfill algorithm
 		srand(time(NULL));
@@ -337,19 +335,19 @@ std::vector<Plate> segment(cv::Mat input)
 		int newMaskVal = 255;
 		int NumSeeds = 10;
 		cv::Rect ccomp;
-		int flags = connectivity + ( newMaskVal << 8 ) + CV_FLOODFILL_FIXED_RANGE + CV_FLOODFILL_MASK_ONLY;
+		int flags = connectivity + (newMaskVal << 8) + CV_FLOODFILL_FIXED_RANGE + CV_FLOODFILL_MASK_ONLY;
 		for (int j = 0; j < NumSeeds; j++)
 		{
 			cv::Point seed;
-			seed.x = static_cast<int>( rects[i].center.x ) + rand() % ( int ) static_cast<int>( minSize ) - ( static_cast<int>( minSize ) / 2 );
-			seed.y = static_cast<int>( rects[i].center.y ) + rand() % ( int ) static_cast<int>( minSize ) - ( static_cast<int>( minSize ) / 2 );
+			seed.x = static_cast<int>(rects[i].center.x) + rand() % (int) static_cast<int>(minSize) -(static_cast<int>(minSize) / 2);
+			seed.y = static_cast<int>(rects[i].center.y) + rand() % (int) static_cast<int>(minSize) -(static_cast<int>(minSize) / 2);
 			circle(result, seed, 1, cv::Scalar(0, 255, 255), -1);
 			if (seed.y < 0) seed.y = 0;
 			int area = floodFill(input, mask, seed, cv::Scalar(255, 0, 0), &ccomp, cv::Scalar(loDiff, loDiff, loDiff), cv::Scalar(upDiff, upDiff, upDiff), flags);
 		}
 		if (showSteps)
 		{
-			imshow("MASK", mask);
+			imshow(window_name, mask);
 			cv::waitKey();
 		}
 
@@ -369,7 +367,7 @@ std::vector<Plate> segment(cv::Mat input)
 			// rotated rectangle drawing 
 			cv::Point2f rect_points[4]; minRect.points(rect_points);
 			for (int j = 0; j < 4; j++)
-				line(result, rect_points[j], rect_points[( j + 1 ) % 4], cv::Scalar(0, 0, 255), 1, 8);
+				line(result, rect_points[j], rect_points[(j + 1) % 4], cv::Scalar(0, 0, 255), 1, 8);
 
 			//Get rotation matrix
 			float r = (float) minRect.size.width / (float) minRect.size.height;
@@ -407,7 +405,7 @@ std::vector<Plate> segment(cv::Mat input)
 		}
 	}
 	if (showContours)
-		imshow("Contours", result);
+		imshow(window_name, result);
 	return output;
 }
 
@@ -417,64 +415,105 @@ void Detection(cv::Mat input_image)
 	cv::Mat img_gray;
 	cvtColor(input_image, img_gray, CV_BGR2GRAY);
 
-	cv::Mat otsu_threshold;
-	cv::threshold(img_gray, otsu_threshold, 0, 255, CV_THRESH_OTSU);
-	cv::imshow("Otsu", otsu_threshold);
+	cv::Mat otsu;
+	cv::threshold(img_gray, otsu, 0, 255, cv::THRESH_OTSU);
+	cv::imshow(window_name, otsu);
 	cv::waitKey();
 
-	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 9)); //17,3
-	
-	cv::Mat substracts;
-	cv::morphologyEx(otsu_threshold, substracts, CV_MOP_TOPHAT, element);
-	cv::imshow("TOP HAT", substracts);
+	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(20, 5)); //longueur/hauteur
+
+	cv::Mat top_hat;
+	cv::morphologyEx(otsu, top_hat, CV_MOP_TOPHAT, element);
+	cv::imshow(window_name, top_hat);
 	cv::waitKey();
+
+	/*for (int i = 1; i < 31; i = i + 2)
+	{
+	cv::Mat dst;
+	cv::blur(top_hat, dst, cv::Size(i, i), cv::Point(-1, -1));
+	std::string name = "blur " + std::to_string(i);
+	cv::imshow(window_name, dst);
+	cv::waitKey();
+	}
+	for (int i = 1; i < 31; i = i + 2)
+	{
+	cv::Mat gaus;
+	cv::GaussianBlur(top_hat, gaus, cv::Size(i, i), 0, 0);
+	std::string name = "gauss " + std::to_string(i);
+	cv::imshow(window_name, gaus);
+	cv::waitKey();
+	}*/
+
+	/*for (int i = 1; i < 31; i = i + 2)
+	{
+	cv::Mat median;
+	cv::medianBlur(top_hat, median, i);
+	std::string name = "median " + std::to_string(i);
+	cv::imshow(window_name, median);
+	cv::waitKey();
+	}*/
+	cv::Mat median;
+	cv::medianBlur(top_hat, median, 31);
+	cv::imshow(window_name, median);
+	cv::waitKey();
+
+	/*for (int i = 1; i < 31; i = i + 2)
+	{
+	cv::Mat bilateral;
+	bilateralFilter(top_hat, bilateral, i, i * 2, i / 2);
+	std::string name = "bilateral " + std::to_string(i);
+	cv::imshow(window_name, bilateral);
+	cv::waitKey();
+	}*/
 
 	cv::Mat dilation;
-	cv::morphologyEx(substracts, dilation, CV_MOP_DILATE, element);
-	cv::imshow("Dilation", dilation);
+	cv::morphologyEx(top_hat, dilation, CV_MOP_DILATE, element); //Fonctionne peut etre mieux avec le top_hat !
+	cv::imshow(window_name, dilation);
 	cv::waitKey();
 
-	/*cv::Mat img_sobel;
-	cv::Sobel(substracts, img_sobel, CV_8U, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);
-	cv::imshow("sobel", img_sobel);
+	cv::Mat dilation2;
+	cv::morphologyEx(median, dilation2, CV_MOP_DILATE, element);
+	cv::imshow(window_name, dilation2);
 	cv::waitKey();
-
-	cv::Mat blur;
-	cv::blur(img_sobel, blur, cv::Size(5, 5));
-	cv::imshow("blur", blur);
-	cv::waitKey();
-	
-	cv::Mat closing;
-	cv::morphologyEx(blur, closing, CV_MOP_CLOSE, element);
-	cv::imshow("Closing", closing);
-	cv::waitKey();
-
-	threshold(closing, otsu_threshold, 0, 255, CV_THRESH_OTSU);
-	cv::imshow("Otsu", otsu_threshold);
-	cv::waitKey();*/
 
 	std::vector< std::vector< cv::Point> > contours;
-	cv::findContours(dilation, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+	cv::findContours(dilation, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE); //utilisation de la dilatation top_hat 
 
 	std::vector<cv::RotatedRect> rects;
 	std::vector<std::vector<cv::Point> >::iterator itc = contours.begin();
 	while (itc != contours.end())
 	{
 		cv::RotatedRect mr = cv::minAreaRect(cv::Mat(*itc));
+		std::cout << mr.size << std::endl;
 
-		float area = fabs(cv::contourArea(*itc));
-		float bbArea = mr.size.width * mr.size.height;
-		float ratio = area / bbArea;
-
-		if (( ratio < 0.45 ) || ( bbArea < 400 ))
-		{
+		if (mr.size.width * mr.size.height < 2500)
 			itc = contours.erase(itc);
+		else
+			++itc;
+
+		/*if (!verifySizes(mr))
+		{
+		itc = contours.erase(itc);
 		}
 		else
 		{
-			++itc;
-			rects.push_back(mr);
+		++itc;
+		rects.push_back(mr);
+		}*/
+
+		/*float area = fabs(cv::contourArea(*itc));
+		float bbArea = mr.size.width * mr.size.height;
+		float ratio = area / bbArea;
+
+		if ((ratio < 0.45) || (bbArea < 400))
+		{
+		itc = contours.erase(itc);
 		}
+		else
+		{
+		++itc;
+		rects.push_back(mr);
+		}*/
 	}
 
 	cv::Mat result;
@@ -484,7 +523,7 @@ void Detection(cv::Mat input_image)
 					 cv::Scalar(255, 0, 0), // in blue
 					 1); // with a thickness of 1
 
-	imshow("Contours", result);
+	imshow(window_name, result);
 	cv::waitKey();
 
 }

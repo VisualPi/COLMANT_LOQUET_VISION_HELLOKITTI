@@ -8,90 +8,107 @@
 #include <opencv2/video.hpp>
 #include <opencv2/calib3d.hpp>
 
+#include <Plate.hpp>
+
 #include <iostream>
 #include <iomanip>
 
+#define DISPARITY 0
+
+
+#pragma region functions definitions
 void findMatchings(cv::Mat&, cv::Mat&, std::vector<cv::Point2f>&, std::vector<cv::Point2f>&);
 void showMatchings(cv::Mat, cv::Mat, const  std::vector<cv::Point2f>&, const  std::vector<cv::Point2f>&);
 void rectify(cv::Mat&, cv::Mat&, std::vector<cv::Point2f>&, std::vector<cv::Point2f>&, cv::Mat&, cv::Mat&);
 cv::Mat computeDisparity(cv::Mat&, cv::Mat&);
+std::vector<Plate> segment(cv::Mat input);
+#pragma endregion definition des fonctions
 
-void segment(cv::Mat input);
+#pragma region variables definitions
 int cpt = 0;
 std::vector<cv::Mat> results;
+
+bool showSteps = true;
+bool showContours = true;
+bool saveRegions = true;
+#pragma endregion declaration des variables
+
+
 int main(int argc, char** argv)
 {
-	/*if (argc < 3)
-	{
-		std::cerr << "Required arguments: left.jpg right.jpg" << std::endl;
-		return 1;
-	}*/
+#if DISPARITY == 1
 	std::vector<cv::Mat> images;
-	std::vector<cv::Mat> images2;
 	std::stringstream path("");
 	for (int i = 0; i < 78; ++i) //parce qu'il y a 77 images dans le dossier, a voir si on fait pas un count des *.png ou si on passe un nombre d'image a analyser
 	{
 		path << "..\\..\\images\\2011_09_26_drive_0052_sync\\image_02\\data\\"
 			<< std::setfill('0') << std::setw(10) << i
 			<< ".png";
-		cv::Mat image1 = cv::imread(path.str(), CV_LOAD_IMAGE_COLOR/*CV_LOAD_IMAGE_GRAYSCALE*/);
+		cv::Mat image1 = cv::imread(path.str(), CV_LOAD_IMAGE_GRAYSCALE);
 		images.push_back(image1);
 		path = std::stringstream();
 	}
-	//for (int i = 0; i < 78; ++i) //parce qu'il y a 77 images dans le dossier, a voir si on fait pas un count des *.png ou si on passe un nombre d'image a analyser
-	//{
-	//	path << "..\\..\\images\\2011_09_26_drive_0052_sync\\image_03\\data\\"
-	//		<< std::setfill('0') << std::setw(10) << i
-	//		<< ".png";
-	//	cv::Mat image1 = cv::imread(path.str(), /*CV_LOAD_IMAGE_COLOR*/CV_LOAD_IMAGE_GRAYSCALE);
-	//	images2.push_back(image1);
-	//	path = std::stringstream();
-	//}
+
+	std::vector<cv::Mat> images2;
+	for (int i = 0; i < 78; ++i) //parce qu'il y a 77 images dans le dossier, a voir si on fait pas un count des *.png ou si on passe un nombre d'image a analyser
+	{
+		path << "..\\..\\images\\2011_09_26_drive_0052_sync\\image_03\\data\\"
+			<< std::setfill('0') << std::setw(10) << i
+			<< ".png";
+		cv::Mat image1 = cv::imread(path.str(), /*CV_LOAD_IMAGE_COLOR*/CV_LOAD_IMAGE_GRAYSCALE);
+		images2.push_back(image1);
+		path = std::stringstream();
+	}
+
 	for (std::vector<cv::Mat>::const_iterator it = images.begin(); it != images.end(); ++it)
 	{
-		//cv::imshow("img", *it);
-
-		cv::Mat image1 = ( *it );
-		
-		//cv::Mat image2 = images2[cpt];
-		
-
-		segment(image1);
-		std::cout << "segmenting img " << cpt << std::endl;
-		/*std::vector<cv::Point2f> points1;
+		std::vector<cv::Point2f> points1;
 		std::vector<cv::Point2f> points2;
-		findMatchings(image1, image2, points1, points2);
-		findMatchings(image2, image1, points2, points1);
-		showMatchings(image1, image2, points1, points2);
-		cv::Mat disparity = computeDisparity(image1, image2);
-		cv::imshow("disparity", disparity);*/
-		
-		//cv::waitKey();
+		findMatchings(( *it ), images2[cpt], points1, points2);
+		findMatchings(images2[cpt], image1, points2, points1);
+		showMatchings(( *it ), images2[cpt], points1, points2);
+		cv::Mat disparity = computeDisparity(( *it ), images2[cpt]);
+		cv::imshow("disparity", disparity);
+		cv::waitKey();
+		cpt++;
+	}
+#else
+	std::vector<cv::Mat> images;
+	std::stringstream path("");
+	for (int i = 0; i < 78; ++i) //parce qu'il y a 77 images dans le dossier, a voir si on fait pas un count des *.png ou si on passe un nombre d'image a analyser
+	{
+		path << "..\\..\\images\\2011_09_26_drive_0052_sync\\image_02\\data\\"
+			<< std::setfill('0') << std::setw(10) << i
+			<< ".png";
+		cv::Mat image1 = cv::imread(path.str(), CV_LOAD_IMAGE_COLOR);
+		images.push_back(image1);
+		path = std::stringstream();
+	}
+	for (std::vector<cv::Mat>::const_iterator it = images.begin(); it != images.end(); ++it)
+	{
+		//cv::Mat image1 = ( *it );
+		cv::Mat image1 = cv::imread("D:\\ESGI\\5A\\opencv\\mastering_opencv\\trunk\\Chapter5_NumberPlateRecognition\\test\\3028BYS.JPG", CV_LOAD_IMAGE_COLOR);;
+
+		std::vector<Plate> tmp_plates = segment(image1);
+		//if (showContours)
+		//	cv::waitKey();
+
+		int i = 0;
+		for (std::vector<Plate>::const_iterator it2 = tmp_plates.begin(); it2 != tmp_plates.end(); ++it2)
+		{
+			std::string name = "Plate : " + std::to_string(i++);
+			cv::imshow(name, (*it2).GetImg());
+		}
+		cv::waitKey();
 		cpt++;
 	}
 
-	for (std::vector<cv::Mat>::const_iterator it = results.begin(); it != results.end(); ++it)
+	/*for (std::vector<cv::Mat>::const_iterator it = results.begin(); it != results.end(); ++it)
 	{
-		cv::imshow("img", *it); 
+		cv::imshow("img", *it);
 		cv::waitKey();
-	}
-
-	//cv::Mat image1 = cv::imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
-	//cv::Mat image2 = cv::imread(argv[2], CV_LOAD_IMAGE_GRAYSCALE);
-	//std::vector<cv::Point2f> points1;
-	//std::vector<cv::Point2f> points2;
-	//findMatchings(image1, image2, points1, points2);
-	//findMatchings(image2, image1, points2, points1);
-	//showMatchings(image1, image2, points1, points2);
-	//cv::Mat rectified1(image1.size(), image1.type());
-	//cv::Mat rectified2(image2.size(), image2.type());
-	//rectify(image1, image2, points1, points2, rectified1, rectified2);
-	//cv::imshow("rectified L", rectified1);
-	//cv::imshow("rectified R", rectified2);
-	////cv::waitKey();
-	//cv::Mat disparity = computeDisparity(rectified1, rectified2);
-	//cv::imshow("disparity", disparity);
-	//cv::waitKey();
+	}*/
+#endif
 	return 0;
 }
 
@@ -170,21 +187,21 @@ cv::Mat computeDisparity(cv::Mat& rectified1, cv::Mat& rectified2)
 
 
 
-//DFJKDKLFJSDLJFDSLKFJSDLKFJSKDLFJLKDSFJKSLDFJLSDJF
+//detections plaques
 
 bool verifySizes(cv::RotatedRect mr)
 {
-	float error = 0.4;
+	float error = 0.4f;
 	//Spain car plate size: 52x11 aspect 4,7272
-	float aspect = 4.7272;
+	float aspect = 4.7272f;
 	//Set a min and max area. All other patchs are discarded
-	int min = 5 * aspect * 5; // minimum area (before : 15)
-	int max = 50 * aspect * 50; // maximum area (before 125)
+	int min = 5 * static_cast<int>( aspect ) * 5; // minimum area (before : 15)
+	int max = 50 * static_cast<int>( aspect ) * 50; // maximum area (before 125)
 								  //Get only patchs that match to a respect ratio.
 	float rmin = aspect - aspect*error;
 	float rmax = aspect + aspect*error;
 
-	int area = mr.size.height * mr.size.width;
+	int area = static_cast<int>( mr.size.height ) * static_cast<int>( mr.size.width );
 	float r = (float) mr.size.width / (float) mr.size.height;
 	if (r < 1)
 		r = (float) mr.size.height / (float) mr.size.width;
@@ -222,22 +239,18 @@ cv::Mat histeq(cv::Mat in)
 
 }
 
-bool showSteps = false;
-bool showContours = false;
-bool saveRegions = false;
-
-void segment(cv::Mat input)
+std::vector<Plate> segment(cv::Mat input)
 {
-	//vector<Plate> output;
+	std::vector<Plate> output;
 
 	//convert image to gray
 	cv::Mat img_gray;
 	cvtColor(input, img_gray, CV_BGR2GRAY);
 	cv::blur(img_gray, img_gray, cv::Size(5, 5));
 
-	//Finde vertical lines. Car plates have high density of vertical lines
+	//Find vertical lines. Car plates have high density of vertical lines
 	cv::Mat img_sobel;
-	Sobel(img_gray, img_sobel, CV_8U, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);
+	cv::Sobel(img_gray, img_sobel, CV_8U, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);
 	if (showSteps)
 	{
 		imshow("Sobel", img_sobel);
@@ -255,8 +268,8 @@ void segment(cv::Mat input)
 	}
 
 	//Morphplogic operation close
-	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(17, 3));
-	morphologyEx(img_threshold, img_threshold, CV_MOP_CLOSE, element);
+	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(15, 3)); //17,3
+	cv::morphologyEx(img_threshold, img_threshold, CV_MOP_CLOSE, element);
 	if (showSteps)
 	{
 		imshow("Close", img_threshold);
@@ -265,12 +278,12 @@ void segment(cv::Mat input)
 
 	//Find contours of possibles plates
 	std::vector< std::vector< cv::Point> > contours;
-	findContours(img_threshold,
+	cv::findContours(img_threshold,
 				 contours, // a vector of contours
 				 CV_RETR_EXTERNAL, // retrieve the external contours
 				 CV_CHAIN_APPROX_NONE); // all pixels of each contours
 
-										//Start to iterate to each contour founded
+	//Start to iterate to each contour founded
 	std::vector<std::vector<cv::Point> >::iterator itc = contours.begin();
 	std::vector<cv::RotatedRect> rects;
 
@@ -307,7 +320,7 @@ void segment(cv::Mat input)
 		circle(result, rects[i].center, 3, cv::Scalar(0, 255, 0), -1);
 		//get the min size between width and height
 		float minSize = ( rects[i].size.width < rects[i].size.height ) ? rects[i].size.width : rects[i].size.height;
-		minSize = minSize - minSize*0.5;
+		minSize = minSize - minSize * 0.5f;
 		//initialize rand and get 5 points around center for floodfill algorithm
 		srand(time(NULL));
 		//Initialize floodfill parameters and variables
@@ -324,8 +337,8 @@ void segment(cv::Mat input)
 		for (int j = 0; j < NumSeeds; j++)
 		{
 			cv::Point seed;
-			seed.x = rects[i].center.x + rand() % (int) minSize - ( minSize / 2 );
-			seed.y = rects[i].center.y + rand() % (int) minSize - ( minSize / 2 );
+			seed.x = static_cast<int>( rects[i].center.x ) + rand() % ( int ) static_cast<int>( minSize ) - ( static_cast<int>( minSize ) / 2 );
+			seed.y = static_cast<int>( rects[i].center.y ) + rand() % ( int ) static_cast<int>( minSize ) - ( static_cast<int>( minSize ) / 2 );
 			circle(result, seed, 1, cv::Scalar(0, 255, 255), -1);
 			if (seed.y < 0) seed.y = 0;
 			if (cpt == 23)
@@ -398,12 +411,10 @@ void segment(cv::Mat input)
 				ss << "tmp/" << "saved" /*filename */ << "_" << i << ".jpg";
 				imwrite(ss.str(), grayResult);
 			}
-			//output.push_back(Plate(grayResult, minRect.boundingRect()));
+			output.push_back(Plate(grayResult, minRect.boundingRect()));
 		}
 	}
 	if (showContours)
 		imshow("Contours", result);
-	results.push_back(cv::Mat(result));
-	cv::waitKey();
-	//return output;
+	return output;
 }

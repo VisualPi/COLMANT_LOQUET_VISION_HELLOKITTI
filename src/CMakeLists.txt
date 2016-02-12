@@ -2,7 +2,7 @@ project (HelloKitty CXX)
 include_directories(../include
 					${OPENCVINCLUDEDIR})
 
-set(SOURCES_FILES	./main.cpp 
+set(SOURCES_FILES	./main.cpp
 					)
 					
 add_executable(${PROJECT_NAME} ${SOURCES_FILES})

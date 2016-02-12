@@ -22,6 +22,8 @@ void showMatchings(cv::Mat, cv::Mat, const  std::vector<cv::Point2f>&, const  st
 void rectify(cv::Mat&, cv::Mat&, std::vector<cv::Point2f>&, std::vector<cv::Point2f>&, cv::Mat&, cv::Mat&);
 cv::Mat computeDisparity(cv::Mat&, cv::Mat&);
 std::vector<Plate> segment(cv::Mat input);
+
+void Detection(cv::Mat input_image);
 #pragma endregion definition des fonctions
 
 #pragma region variables definitions
@@ -86,21 +88,22 @@ int main(int argc, char** argv)
 	}
 	for (std::vector<cv::Mat>::const_iterator it = images.begin(); it != images.end(); ++it)
 	{
-		//cv::Mat image1 = ( *it );
-		cv::Mat image1 = cv::imread("D:\\ESGI\\5A\\opencv\\mastering_opencv\\trunk\\Chapter5_NumberPlateRecognition\\test\\3028BYS.JPG", CV_LOAD_IMAGE_COLOR);;
+		cv::Mat image1 = ( *it );
+		//cv::Mat image1 = cv::imread("D:\\ESGI\\5A\\opencv\\mastering_opencv\\trunk\\Chapter5_NumberPlateRecognition\\test\\3028BYS.JPG", CV_LOAD_IMAGE_COLOR);;
 
-		std::vector<Plate> tmp_plates = segment(image1);
+		//std::vector<Plate> tmp_plates = segment(image1);
 		//if (showContours)
 		//	cv::waitKey();
 
-		int i = 0;
+		/*int i = 0;
 		for (std::vector<Plate>::const_iterator it2 = tmp_plates.begin(); it2 != tmp_plates.end(); ++it2)
 		{
 			std::string name = "Plate : " + std::to_string(i++);
 			cv::imshow(name, (*it2).GetImg());
 		}
 		cv::waitKey();
-		cpt++;
+		cpt++;*/
+		Detection(image1);
 	}
 
 	/*for (std::vector<cv::Mat>::const_iterator it = results.begin(); it != results.end(); ++it)
@@ -341,18 +344,6 @@ std::vector<Plate> segment(cv::Mat input)
 			seed.y = static_cast<int>( rects[i].center.y ) + rand() % ( int ) static_cast<int>( minSize ) - ( static_cast<int>( minSize ) / 2 );
 			circle(result, seed, 1, cv::Scalar(0, 255, 255), -1);
 			if (seed.y < 0) seed.y = 0;
-			if (cpt == 23)
-			{
-				std::cout << "Calling flodFill whith parameters : "
-					//<< input << ", "
-					//<< mask << ", "
-					<< seed << ", "
-					<< cv::Scalar(255, 0, 0) << ", "
-					//<< ccomp << ", "
-					<< cv::Scalar(loDiff, loDiff, loDiff) << ", "
-					<< cv::Scalar(upDiff, upDiff, upDiff) << ", "
-					<< flags << ", " << std::endl;
-			}
 			int area = floodFill(input, mask, seed, cv::Scalar(255, 0, 0), &ccomp, cv::Scalar(loDiff, loDiff, loDiff), cv::Scalar(upDiff, upDiff, upDiff), flags);
 		}
 		if (showSteps)
@@ -417,4 +408,82 @@ std::vector<Plate> segment(cv::Mat input)
 	if (showContours)
 		imshow("Contours", result);
 	return output;
+}
+
+
+void Detection(cv::Mat input_image)
+{
+	cv::Mat img_gray;
+	cvtColor(input_image, img_gray, CV_BGR2GRAY);
+
+	cv::Mat otsu_threshold;
+	cv::threshold(img_gray, otsu_threshold, 0, 255, CV_THRESH_OTSU);
+	cv::imshow("Otsu", otsu_threshold);
+	cv::waitKey();
+
+	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 9)); //17,3
+	
+	cv::Mat substracts;
+	cv::morphologyEx(otsu_threshold, substracts, CV_MOP_TOPHAT, element);
+	cv::imshow("TOP HAT", substracts);
+	cv::waitKey();
+
+	cv::Mat dilation;
+	cv::morphologyEx(substracts, dilation, CV_MOP_DILATE, element);
+	cv::imshow("Dilation", dilation);
+	cv::waitKey();
+
+	/*cv::Mat img_sobel;
+	cv::Sobel(substracts, img_sobel, CV_8U, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);
+	cv::imshow("sobel", img_sobel);
+	cv::waitKey();
+
+	cv::Mat blur;
+	cv::blur(img_sobel, blur, cv::Size(5, 5));
+	cv::imshow("blur", blur);
+	cv::waitKey();
+	
+	cv::Mat closing;
+	cv::morphologyEx(blur, closing, CV_MOP_CLOSE, element);
+	cv::imshow("Closing", closing);
+	cv::waitKey();
+
+	threshold(closing, otsu_threshold, 0, 255, CV_THRESH_OTSU);
+	cv::imshow("Otsu", otsu_threshold);
+	cv::waitKey();*/
+
+	std::vector< std::vector< cv::Point> > contours;
+	cv::findContours(dilation, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+
+	std::vector<cv::RotatedRect> rects;
+	std::vector<std::vector<cv::Point> >::iterator itc = contours.begin();
+	while (itc != contours.end())
+	{
+		cv::RotatedRect mr = cv::minAreaRect(cv::Mat(*itc));
+
+		float area = fabs(cv::contourArea(*itc));
+		float bbArea = mr.size.width * mr.size.height;
+		float ratio = area / bbArea;
+
+		if (( ratio < 0.45 ) || ( bbArea < 400 ))
+		{
+			itc = contours.erase(itc);
+		}
+		else
+		{
+			++itc;
+			rects.push_back(mr);
+		}
+	}
+
+	cv::Mat result;
+	input_image.copyTo(result);
+	cv::drawContours(result, contours,
+					 -1, // draw all contours
+					 cv::Scalar(255, 0, 0), // in blue
+					 1); // with a thickness of 1
+
+	imshow("Contours", result);
+	cv::waitKey();
+
 }

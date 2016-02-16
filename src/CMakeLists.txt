@@ -3,6 +3,7 @@ include_directories(../include
 					${OPENCVINCLUDEDIR})
 
 set(SOURCES_FILES	./main.cpp
+					#./OCR.cpp
 					)
 					
 add_executable(${PROJECT_NAME} ${SOURCES_FILES})

@@ -470,8 +470,19 @@ std::vector<Plate> Detection(cv::Mat& input_image, const std::string& windowName
 		if (Validate(*itc))
 		{
 			cv::RotatedRect rect = cv::minAreaRect(cv::Mat(*itc));
-			cv::Mat pMat = input_image(rect.boundingRect());
-			plates.push_back(Plate(pMat, rect));
+            cv::Rect r = rect.boundingRect();
+            if (r.x + r.width >= input_image.size().width) {
+                r.width -= (input_image.size().width - (r.x + r.width));
+                r.height -= (input_image.size().height - (r.y + r.height));
+            }
+            if (r.x < 0)
+                r.x = 0;
+            if (r.y < 0)
+                r.y = 0;
+
+            rect.boundingRect() = r;
+			cv::Mat pMat = input_image(r);
+            plates.push_back(Plate(pMat, rect));
 			++itc;
 		}
 		else
@@ -549,7 +560,18 @@ std::vector<cv::RotatedRect> Detection2(cv::Mat& input_image, const std::string&
 		{
 			cv::RotatedRect rect = cv::minAreaRect(cv::Mat(*itc));
 			cv::Rect r = rect.boundingRect();
-			plates.push_back(rect);
+            if (r.x + r.width >= input_image.size().width) 
+            {
+                r.width -= (input_image.size().width - (r.x + r.width));
+                r.height -= (input_image.size().height - (r.y + r.height));
+            }
+            if (r.x < 0)
+                r.x = 0;
+            if (r.y < 0)
+                r.y = 0;
+            
+            rect.boundingRect() = r;
+            plates.push_back(rect);
 			++itc;
 		}
 		else

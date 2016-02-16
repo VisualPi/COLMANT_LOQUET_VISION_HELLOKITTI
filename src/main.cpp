@@ -16,8 +16,6 @@
 #include <iostream>
 #include <iomanip>
 
-cv::Ptr<cv::ml::ANN_MLP> classifier = cv::ml::ANN_MLP::create();
-
 #define DISPARITY 0
 #define HARD_CHECK 0  //used for images datas from kitty website
 
@@ -140,11 +138,11 @@ int main(int argc, char** argv)
 
 #if HARD_CHECK == 1
 		//Si hard check est actif, on va découper l'image en sous images et traiter chacunes de ces sous images
-		int nbCaseX = 5;
-		int nbCaseY = 3;
+		int nbCaseX = 2;
+		int nbCaseY = 2;
 		int lenX = image1.size().width / nbCaseX;
 		int lenY = image1.size().height / nbCaseY;
-		int factRes = 3;
+		int factRes = 1;
 		for (int x = 0; x < nbCaseX; ++x)
 		{
 			for (int y = 0; y < nbCaseY; ++y)
@@ -224,21 +222,25 @@ int main(int argc, char** argv)
 
 
 				cv::Mat ch = preprocessChar(( *pit ).GetChars()[i].m_char);
+				cv::resize(ch, ch, cv::Size(ch.size().width * 10, ch.size().height * 10));
 				//cv::imshow("char", ch);
 				cv::Mat canny1;
-				Canny(ch>10, canny1, 50, 50 * 2, 3);
+				Canny(ch>10, canny1, 100, 100 * 2, 3);
 				std::vector<std::vector<cv::Point> > contours1;
 				std::vector<cv::Vec4i> hierarchy;
-				findContours(canny1,
-							 contours1, // a vector of contours
-							 CV_RETR_EXTERNAL, // retrieve the external contours
-							 CV_CHAIN_APPROX_SIMPLE); // all pixels of each contours
-				//findContours(canny1, contours1, hierarchy,
-				//			 CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+				//findContours(canny1,
+				//			 contours1, // a vector of contours
+				//			 CV_RETR_EXTERNAL, // retrieve the external contours
+				//			 CV_CHAIN_APPROX_SIMPLE); // all pixels of each contours
+				findContours(canny1, contours1, hierarchy,
+							 CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+				int indexAlph = -1;
+				double min = std::numeric_limits<double>::max();
 				for (int j = 0; j < alphabet.size(); ++j)
 				{
  					cv::Mat alph;
 					cv::resize(alphabet[j], alph, cv::Size(ch.size().width, ch.size().height));
+					
 					
 					//cv::imshow("number", alph);
 					//cv::waitKey();
@@ -246,17 +248,38 @@ int main(int argc, char** argv)
 					cv::Mat canny2;
 					Canny(alph, canny2, 50, 50 * 2, 3);
 					std::vector<std::vector<cv::Point> > contours2;
-					hierarchy = std::vector<cv::Vec4i>();
-					findContours(canny2,
-								 contours2, // a vector of contours
-								 CV_RETR_EXTERNAL, // retrieve the external contours
-								 CV_CHAIN_APPROX_SIMPLE); // all pixels of each contours
-					//findContours(canny2, contours2, hierarchy,
-					//			 CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+					std::vector<cv::Vec4i> hierarchy2;
+					//findContours(canny2,
+					//			 contours2, // a vector of contours
+					//			 CV_RETR_EXTERNAL, // retrieve the external contours
+					//			 CV_CHAIN_APPROX_SIMPLE); // all pixels of each contours
+					findContours(canny2, contours2, hierarchy2,
+								 CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
 
 					cv::waitKey();
 					double d,d2,d3;
+					int idx = 0;
+					int ind_min;
+					double ret;
+					
+					//Matching example contours[0] with contours of the photo contours2[idx].
+					//Comparing output of matchShapes function, the lower is better. 
+					for (; idx >= 0; idx = hierarchy2[idx][0])
+					{
+						double ret = matchShapes(contours1[0], contours2[idx], CV_CONTOURS_MATCH_I1, 0.0);
+						std::cout << "for caractere " << CharsAlphabet[j] << " with hierarchy -> d = " << ret << std::endl;
+						//std::cout << "for k = " << k << " and l = " << l << " -> d2 = " << d2 << std::endl;
+						//std::cout << "for k = " << k << " and l = " << l << " -> d3 = " << d3 << std::endl;
+						if (ret < min && ret > 0.0)
+						{
+							min = ret;
+							ind_min = idx;
+							indexAlph = j;
+						}
+					}
+
+
 					try
 					{
 						//d = cv::matchShapes(keep1, keep2, 1, 0.0);
@@ -271,8 +294,8 @@ int main(int argc, char** argv)
 								//std::cout << "for k = " << k << " and l = " << l << " -> d = " << d << std::endl;
 								//std::cout << "for k = " << k << " and l = " << l << " -> d2 = " << d2 << std::endl;
 								//std::cout << "for k = " << k << " and l = " << l << " -> d3 = " << d3 << std::endl;
-								if(d < 0.015 || d2 < 0.015 || d3 < 0.015)
-									std::cout << "it seems to match with character : " << CharsAlphabet[j] << " !" << std::endl;
+								//if(d < 0.015 || d2 < 0.015 || d3 < 0.015)
+									//std::cout << "it seems to match with character : " << CharsAlphabet[j] << " !" << std::endl;
 								//else
 									//std::cout << "it doesn't match !" << std::endl;
 							}
@@ -296,6 +319,8 @@ int main(int argc, char** argv)
 					cv::imshow("contours", canny1);
 					cv::imshow("contours2", canny2);
 				}
+				if(indexAlph != -1)
+					std::cout << std::endl << "the best match is : " << CharsAlphabet[indexAlph] << std::endl;
  				cv::waitKey();
 				/*if (saveSegments)
 				{
@@ -310,13 +335,11 @@ int main(int argc, char** argv)
 				//input->chars.push_back(strCharacters[character]);
 				//input->charsPos.push_back(segments[i].pos);
 			}
-
-
-
 		}
 #endif
 	}
 #endif
+
 	return 0;
 }
 
@@ -525,6 +548,7 @@ std::vector<cv::RotatedRect> Detection2(cv::Mat& input_image, const std::string&
 		if (Validate(*itc))
 		{
 			cv::RotatedRect rect = cv::minAreaRect(cv::Mat(*itc));
+			cv::Rect r = rect.boundingRect();
 			plates.push_back(rect);
 			++itc;
 		}
@@ -603,13 +627,19 @@ void CharactersDetection(Plate& plate)
 	cv::Mat input = plate.GetImage();
 	cv::Mat gray;
 	cv::cvtColor(input, gray, cv::COLOR_BGR2GRAY);
+	cv::imshow("test", gray);
+	cv::waitKey();
 	//vector<CharSegment> output;
 	//Threshold input image
 	cv::Mat img_threshold;
 	threshold(gray, img_threshold, 60, 255, CV_THRESH_BINARY_INV);
 
-	//imshow("Threshold plate", img_threshold);
-	//cv::waitKey();
+	if (showSteps)
+	{
+		imshow("Threshold plate", img_threshold);
+		cv::waitKey();
+	}
+	
 
 	cv::Mat img_contours;
 	img_threshold.copyTo(img_contours);
@@ -620,6 +650,12 @@ void CharactersDetection(Plate& plate)
 				 CV_RETR_EXTERNAL, // retrieve the external contours
 				 CV_CHAIN_APPROX_NONE); // all pixels of each contours
 
+	if (showSteps)
+	{
+		imshow("contours", img_contours);
+		cv::waitKey();
+	}
+	
 										// Draw blue contours on a white image
 	cv::Mat result;
 	img_threshold.copyTo(result);
@@ -659,86 +695,12 @@ void CharactersDetection(Plate& plate)
 			auxRoi = preprocessChar(cv::Mat(img_threshold, mr));
 			plate.AddChars(auxRoi, mr);
 			rectangle(result, mr, cv::Scalar(0, 125, 255));
-			//cv::imshow("result", result);
-			//cv::waitKey();
+			cv::imshow("result", result);
+			cv::waitKey();
 		}
 
 		++itc;
 	}
 	//std::cout << "Num chars: " << output.size() << "\n";
 	//return output;
-}
-cv::Mat ProjectedHistogram(cv::Mat img, int t)
-{
-	int sz = ( t ) ? img.rows : img.cols;
-	cv::Mat mhist = cv::Mat::zeros(1, sz, CV_32F);
-
-	for (int j = 0; j < sz; j++)
-	{
-		cv::Mat data = ( t ) ? img.row(j) : img.col(j);
-		mhist.at<float>(j) = cv::countNonZero(data);
-	}
-
-	//Normalize histogram
-	double min, max;
-	minMaxLoc(mhist, &min, &max);
-
-	if (max > 0)
-		mhist.convertTo(mhist, -1, 1.0f / max, 0);
-
-	return mhist;
-}
-cv::Mat features(cv::Mat in, int sizeData)
-{
-	//Histogram features
-	cv::Mat vhist = ProjectedHistogram(in, 1/*VERTICAL*/);
-	cv::Mat hhist = ProjectedHistogram(in, 0/*HORIZONTAL*/);
-
-	//Low data feature
-	cv::Mat lowData;
-	resize(in, lowData, cv::Size(sizeData, sizeData));
-
-	//drawVisualFeatures(in, hhist, vhist, lowData);
-
-
-
-	//Last 10 is the number of moments components
-	int numCols = vhist.cols + hhist.cols + lowData.cols*lowData.cols;
-
-	cv::Mat out = cv::Mat::zeros(1, numCols, CV_32F);
-	//Asign values to feature
-	int j = 0;
-	for (int i = 0; i < vhist.cols; i++)
-	{
-		out.at<float>(j) = vhist.at<float>(i);
-		j++;
-	}
-	for (int i = 0; i < hhist.cols; i++)
-	{
-		out.at<float>(j) = hhist.at<float>(i);
-		j++;
-	}
-	for (int x = 0; x < lowData.cols; x++)
-	{
-		for (int y = 0; y < lowData.rows; y++)
-		{
-			out.at<float>(j) = (float) lowData.at<unsigned char>(x, y);
-			j++;
-		}
-	}
-	//if (DEBUG)
-	std::cout << out << "\n===========================================\n";
-	return out;
-}
-int classify(cv::Mat f)
-{
-	int result = -1;
-	cv::Mat output(1, 30/* numCharacters*/, CV_32FC1);
-	classifier->predict(f, output);
-	cv::Point maxLoc;
-	double maxVal;
-	minMaxLoc(output, 0, &maxVal, 0, &maxLoc);
-	//We need know where in output is the max val, the x (cols) is the class.
-
-	return maxLoc.x;
 }
